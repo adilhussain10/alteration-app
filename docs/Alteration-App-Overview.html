@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Alteration App — Technical Overview & Deployment Guide</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #1f2328;
+    line-height: 1.55;
+    font-size: 11pt;
+    margin: 0;
+  }
+  .cover {
+    page-break-after: always;
+    height: 240mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    border-left: 6px solid #2b6cb0;
+    padding-left: 14mm;
+  }
+  .cover .eyebrow { color: #2b6cb0; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 10pt; }
+  .cover h1 { font-size: 30pt; margin: 6mm 0 2mm 0; color: #111; }
+  .cover h2 { font-size: 16pt; margin: 0 0 14mm 0; color: #4a5568; font-weight: 500; }
+  .cover .meta { font-size: 11pt; color: #4a5568; line-height: 1.9; }
+  .cover .meta b { color: #1f2328; }
+
+  h1, h2, h3, h4 { color: #111; line-height: 1.25; }
+  h1 { font-size: 20pt; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; margin-top: 14mm; }
+  h2 { font-size: 14pt; margin-top: 10mm; color: #2b6cb0; }
+  h3 { font-size: 12pt; margin-top: 7mm; }
+
+  p { margin: 6px 0; }
+  ul, ol { margin: 6px 0 6px 22px; padding: 0; }
+  li { margin: 3px 0; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6mm 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #d0d7de;
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f1f5f9; color: #1f2328; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 9.5pt;
+    background: #f3f4f6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #b45309;
+  }
+  pre {
+    background: #0f172a;
+    color: #e5e7eb;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 9pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    page-break-inside: avoid;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+
+  hr { border: 0; border-top: 1px solid #e2e8f0; margin: 8mm 0; }
+
+  .callout {
+    border-left: 4px solid #2b6cb0;
+    background: #f1f5fb;
+    padding: 8px 12px;
+    margin: 6mm 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .footer-note { color: #6b7280; font-size: 9pt; text-align: center; margin-top: 18mm; }
+
+  .toc ol { margin-left: 18px; }
+  .toc a { color: #1f2328; text-decoration: none; }
+  .toc a:hover { color: #2b6cb0; }
+
+  h1, h2, h3 { page-break-after: avoid; }
+  pre, table { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<section class="cover">
+  <div class="eyebrow">Technical Overview &amp; Deployment Guide</div>
+  <h1>Alteration App</h1>
+  <h2>Architecture, API, and Production Deployment</h2>
+  <div class="meta">
+    <div><b>Prepared for:</b> Management Review</div>
+    <div><b>Document version:</b> 1.0</div>
+    <div><b>Date:</b> 15 May 2026</div>
+    <div><b>Author:</b> Engineering team</div>
+  </div>
+</section>
+
+<!-- ============================ EXEC SUMMARY ============================ -->
+<h1>Executive summary</h1>
+<p>The <b>Alteration App</b> is a standalone web application that adds alteration-tracking
+capability to our existing <b>QuickBill</b> product. It lets staff pick an existing bill,
+record alteration details (quantity, remarks, delivery date, status), and review reports.</p>
+
+<p>Key characteristics:</p>
+<ul>
+  <li><b>No new database.</b> It reads and writes QuickBill's existing SQL Server database directly, so bills saved in QuickBill appear here instantly with no sync layer or duplication of truth.</li>
+  <li><b>Single static binary + static web bundle.</b> Easy to deploy and operate; no runtime dependencies on the production host beyond a stock Linux + nginx.</li>
+  <li><b>Two clear layers</b> — a Go HTTP API and a React (TypeScript) single-page application — connected through a thin reverse-proxy.</li>
+</ul>
+
+<!-- ============================ TOC ============================ -->
+<h1>Table of contents</h1>
+<div class="toc">
+  <ol>
+    <li><a href="#s1">What the application does</a></li>
+    <li><a href="#s2">Architecture</a></li>
+    <li><a href="#s3">Technology stack</a></li>
+    <li><a href="#s4">How the API works</a></li>
+    <li><a href="#s5">How the frontend works</a></li>
+    <li><a href="#s6">Configuration</a></li>
+    <li><a href="#s7">Building for production</a></li>
+    <li><a href="#s8">Deploying on Linux with nginx</a></li>
+    <li><a href="#s9">Operations &amp; maintenance</a></li>
+    <li><a href="#s10">Security &amp; hardening</a></li>
+    <li><a href="#s11">Summary for management</a></li>
+  </ol>
+</div>
+
+<!-- ============================ 1 ============================ -->
+<h1 id="s1">1. What the application does</h1>
+<p>End-users (shop staff) can:</p>
+<ol>
+  <li><b>Pick a bill</b> from a list of vouchers eligible for alteration.</li>
+  <li><b>Record alteration items</b> — for each line item: how many pieces to alter, remarks (e.g., “shorten sleeve by 1 inch”), and a delivery date.</li>
+  <li><b>Track status</b> of each item and of the overall alteration (Received, In Progress, Ready, Delivered, etc.).</li>
+  <li><b>View reports</b> of alterations over a chosen period.</li>
+</ol>
+<p>Because the app talks directly to QuickBill's database, no manual data entry is duplicated and there is no risk of the two systems drifting out of sync.</p>
+
+<!-- ============================ 2 ============================ -->
+<h1 id="s2">2. Architecture</h1>
+<pre><code>            ┌──────────────────────┐
+            │  Browser (user)      │
+            └──────────┬───────────┘
+                       │ HTTPS
+                       ▼
+            ┌──────────────────────┐
+            │  nginx               │
+            │  - serves React SPA  │
+            │  - proxies /api → :8080
+            └──────────┬───────────┘
+                       │ HTTP (localhost)
+                       ▼
+            ┌──────────────────────┐
+            │  alteration-app      │
+            │  (Go binary, :8080)  │
+            │  - reads .env config │
+            └──────────┬───────────┘
+                       │ sqlserver://
+                       ▼
+            ┌──────────────────────┐
+            │  SQL Server          │
+            │  (QuickBill tenant   │
+            │   database)          │
+            └──────────────────────┘</code></pre>
+
+<div class="callout">
+<b>Key design decision:</b> the app does not own a database. It uses QuickBill's SQL Server tenant database, with three migration scripts that add the alteration tables (<code>QbVoucherAlteration</code>, <code>QbVoucherAlterationItems</code>) and seed a voucher type. This guarantees data consistency with QuickBill at all times.
+</div>
+
+<!-- ============================ 3 ============================ -->
+<h1 id="s3">3. Technology stack</h1>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Backend</td><td>Go 1.26 (standard <code>net/http</code> mux)</td><td>Single static binary; fast, low-memory, no JVM</td></tr>
+<tr><td>DB driver</td><td><code>github.com/microsoft/go-mssqldb</code></td><td>Official Microsoft driver for SQL Server</td></tr>
+<tr><td>Config</td><td><code>github.com/joho/godotenv/autoload</code></td><td>Loads <code>.env</code> automatically</td></tr>
+<tr><td>Frontend</td><td>React 19 + TypeScript</td><td>Type-safe, modern UI</td></tr>
+<tr><td>Build tool</td><td>Vite 8</td><td>Fast dev server, optimised production build</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS 4</td><td>Consistent design system, small CSS bundle</td></tr>
+<tr><td>Routing</td><td>React Router 7</td><td>Client-side navigation</td></tr>
+<tr><td>Database</td><td>Microsoft SQL Server (QuickBill's existing DB)</td><td>No new infrastructure required</td></tr>
+<tr><td>Web server</td><td>nginx (Linux production)</td><td>Reverse proxy + TLS + static file serving</td></tr>
+</tbody>
+</table>
+
+<!-- ============================ 4 ============================ -->
+<h1 id="s4">4. How the API works</h1>
+
+<h2>4.1 Entry point</h2>
+<p>The HTTP server is a single Go file: <code>cmd/server/main.go</code>. On startup it:</p>
+<ol>
+  <li>Loads environment variables from <code>.env</code>.</li>
+  <li>Opens a verified connection pool to SQL Server (25 max open, 25 idle, 5-minute connection lifetime).</li>
+  <li>Registers route handlers on Go's standard library mux using method-prefixed patterns (e.g. <code>GET /api/...</code>).</li>
+  <li>Listens on the port from <code>PORT</code> (default <code>8080</code>).</li>
+</ol>
+<p><b>Graceful degradation:</b> if the database is unreachable at startup, the server still starts and every API endpoint returns HTTP <code>503 Service Unavailable</code> with a clear message. This means deployment never blocks on database availability.</p>
+
+<h2>4.2 Endpoints</h2>
+<table>
+<thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>GET</td><td><code>/api/vouchers/for-alteration</code></td><td>List bills available to alter (bill picker)</td></tr>
+<tr><td>GET</td><td><code>/api/voucher/{qbguid}/alteration</code></td><td>Load one voucher and any existing alteration</td></tr>
+<tr><td>POST</td><td><code>/api/voucher/{qbguid}/alteration</code></td><td>Create / update an alteration with items</td></tr>
+<tr><td>PATCH</td><td><code>/api/alterations/{qbguid}/status</code></td><td>Change overall alteration status</td></tr>
+<tr><td>PATCH</td><td><code>/api/alterations/{qbguid}/items/{itemQbguid}/status</code></td><td>Change one item's status</td></tr>
+<tr><td>GET</td><td><code>/api/alterations/reports</code></td><td>Reports listing</td></tr>
+</tbody>
+</table>
+
+<p>All responses are JSON. Errors follow a consistent shape:</p>
+<pre><code>{
+  "error":  "alterationQty 12 exceeds DocQty 5",
+  "status": 400,
+  "detail": { "voucherItemGuid": "...", "alterationQty": 12, "docQty": 5 }
+}</code></pre>
+
+<h2>4.3 Request lifecycle (example — saving an alteration)</h2>
+<p>The save handler (<code>POST /api/voucher/{qbguid}/alteration</code>) illustrates the pattern used throughout:</p>
+<ol>
+  <li><b>Parse</b> path parameter and decode JSON body into a typed struct.</li>
+  <li><b>Validate</b> input — required fields, max lengths, qty &gt; 0, valid status.</li>
+  <li><b>Begin a database transaction.</b> All writes happen inside this transaction so partial failures are impossible.</li>
+  <li><b>Business rule checks</b> — voucher exists, every item belongs to that voucher, requested quantity does not exceed the document quantity.</li>
+  <li><b>Insert or update</b> — if an alteration already exists for the voucher, soft-delete the previous detail rows (<code>ActiveFlag = 0</code>) and increment <code>AlterId</code>, then re-insert. If new, allocate a voucher number from the QuickBill counter and insert header + items.</li>
+  <li><b>Sync header status</b> to the minimum item status (e.g. if any item is still “Received”, the header is “Received”).</li>
+  <li><b>Commit</b> and return JSON with the new identifiers and status.</li>
+</ol>
+<p>Typed errors map cleanly to HTTP status codes — voucher not found → <code>404</code>, validation errors → <code>400</code>, infrastructure errors → <code>500</code>.</p>
+
+<!-- ============================ 5 ============================ -->
+<h1 id="s5">5. How the frontend works</h1>
+<ul>
+  <li>The React app is a <b>single-page application</b> built with Vite.</li>
+  <li>Two pages are routed client-side:
+    <ul>
+      <li><code>/</code> — bill picker</li>
+      <li><code>/alteration</code> — alteration form</li>
+    </ul>
+  </li>
+  <li>All API calls are made to relative paths beginning with <code>/api/...</code>. The frontend never needs to know the backend's hostname or port.</li>
+  <li>During development, Vite proxies <code>/api/*</code> to <code>http://localhost:8080</code>.</li>
+  <li>In production, nginx performs the same proxy. The browser sees a single origin, which avoids CORS complexity and works cleanly with HTTPS.</li>
+</ul>
+
+<!-- ============================ 6 ============================ -->
+<h1 id="s6">6. Configuration</h1>
+<p>All runtime configuration lives in a single <code>.env</code> file at the project root. The file is git-ignored. Two variables are used:</p>
+<table>
+<thead><tr><th>Variable</th><th>Example</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>PORT</code></td><td><code>8080</code></td><td>HTTP port the Go server listens on</td></tr>
+<tr><td><code>DATABASE_URL</code></td><td><code>sqlserver://app_user:STRONGPASS@10.0.0.5:1433?database=QbAppDb1&amp;encrypt=true</code></td><td>SQL Server DSN</td></tr>
+</tbody>
+</table>
+<p>For production the DB user should be a <b>dedicated, least-privilege account</b> with read/write on the alteration tables and read on the QuickBill voucher tables it touches — never the <code>sa</code> account.</p>
+
+<!-- ============================ 7 ============================ -->
+<h1 id="s7">7. Building for production</h1>
+<pre><code># 1. Build the React frontend → web/dist/  (static HTML/CSS/JS)
+cd web
+npm install
+npm run build
+cd ..
+
+# 2. Build the Go API binary
+go build -o alteration ./cmd/server
+
+# Cross-compile from Windows to Linux:
+$env:GOOS = "linux"
+$env:GOARCH = "amd64"
+go build -o alteration ./cmd/server</code></pre>
+<p>This produces two deployable artifacts:</p>
+<ul>
+  <li><code>alteration</code> — a single static Linux binary (no runtime dependencies).</li>
+  <li><code>web/dist/</code> — a folder of static files.</li>
+</ul>
+
+<!-- ============================ 8 ============================ -->
+<h1 id="s8">8. Deploying on Linux with nginx</h1>
+
+<h2>8.1 Prepare the server</h2>
+<pre><code>sudo apt update
+sudo apt install -y nginx
+sudo adduser --system --no-create-home --group alteration
+sudo mkdir -p /opt/alteration /var/www/alteration</code></pre>
+
+<h2>8.2 Copy artifacts to the server</h2>
+<pre><code># From build machine
+scp alteration       user@server:/tmp/
+scp -r web/dist/*    user@server:/tmp/dist/
+scp .env             user@server:/tmp/
+
+# On the server
+sudo mv /tmp/alteration /opt/alteration/alteration
+sudo mv /tmp/.env       /opt/alteration/.env
+sudo mv /tmp/dist/*     /var/www/alteration/
+sudo chown -R alteration:alteration /opt/alteration
+sudo chmod 600 /opt/alteration/.env
+sudo chmod +x /opt/alteration/alteration</code></pre>
+
+<h2>8.3 Run the API as a systemd service</h2>
+<p>Create <code>/etc/systemd/system/alteration.service</code>:</p>
+<pre><code>[Unit]
+Description=Alteration App API
+After=network.target
+
+[Service]
+Type=simple
+User=alteration
+WorkingDirectory=/opt/alteration
+EnvironmentFile=/opt/alteration/.env
+ExecStart=/opt/alteration/alteration
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>Enable and start it:</p>
+<pre><code>sudo systemctl daemon-reload
+sudo systemctl enable --now alteration
+sudo systemctl status alteration
+sudo journalctl -u alteration -f</code></pre>
+
+<h2>8.4 Configure nginx</h2>
+<p>Create <code>/etc/nginx/sites-available/alteration</code>:</p>
+<pre><code>server {
+    listen 80;
+    server_name alteration.yourcompany.com;
+
+    root /var/www/alteration;
+    index index.html;
+
+    # Single-page app fallback: unknown paths return index.html
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # Reverse proxy /api to the Go binary
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Aggressive cache for static assets
+    location ~* \.(js|css|svg|png|jpg|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}</code></pre>
+<p>Enable and reload:</p>
+<pre><code>sudo ln -s /etc/nginx/sites-available/alteration /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+
+<h2>8.5 Enable HTTPS</h2>
+<pre><code>sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d alteration.yourcompany.com</code></pre>
+<p>Certbot installs an auto-renewal timer; no further action is required.</p>
+
+<h2>8.6 Firewall and database connectivity</h2>
+<ul>
+  <li>Open only ports <code>80</code> and <code>443</code> to the internet (<code>ufw allow 80/tcp</code>, <code>ufw allow 443/tcp</code>).</li>
+  <li>Do <b>not</b> expose port <code>8080</code> externally — it is bound to localhost and reached only by nginx.</li>
+  <li>On the SQL Server host, open port <code>1433</code> (or the named-instance port) <i>only</i> to the Linux app server's IP.</li>
+</ul>
+
+<!-- ============================ 9 ============================ -->
+<h1 id="s9">9. Operations &amp; maintenance</h1>
+<table>
+<thead><tr><th>Task</th><th>Command</th></tr></thead>
+<tbody>
+<tr><td>View live API logs</td><td><code>sudo journalctl -u alteration -f</code></td></tr>
+<tr><td>Restart the API (after new binary)</td><td><code>sudo systemctl restart alteration</code></td></tr>
+<tr><td>Reload nginx (after new frontend bundle)</td><td><code>sudo systemctl reload nginx</code></td></tr>
+<tr><td>Check API service health</td><td><code>sudo systemctl status alteration</code></td></tr>
+<tr><td>Deploy a backend update</td><td><code>scp</code> new binary → <code>systemctl restart</code></td></tr>
+<tr><td>Deploy a frontend update</td><td><code>scp</code> new <code>dist/*</code> → <code>systemctl reload nginx</code></td></tr>
+</tbody>
+</table>
+<p>Backend restarts are sub-second; nginx reloads are hitless. Both can be done during business hours with no perceptible disruption.</p>
+
+<!-- ============================ 10 ============================ -->
+<h1 id="s10">10. Security &amp; hardening</h1>
+<ul>
+  <li>API runs as an unprivileged systemd user (<code>alteration</code>), not root.</li>
+  <li><code>.env</code> is <code>chmod 600</code> and owned by the service user — DB password is not world-readable.</li>
+  <li>API binds to <code>127.0.0.1:8080</code> behind nginx; never directly exposed.</li>
+  <li>TLS terminates at nginx via Let's Encrypt certificates with automatic renewal.</li>
+  <li>The SQL Server account used by the app has only the privileges it needs (no <code>sa</code>, no DDL on production).</li>
+  <li>All inputs are validated server-side; all writes are transactional.</li>
+</ul>
+
+<!-- ============================ 11 ============================ -->
+<h1 id="s11">11. Summary for management</h1>
+<ol>
+  <li><b>Low operational footprint.</b> One Go binary plus a folder of static files; stock Linux + nginx is enough to host it.</li>
+  <li><b>No data duplication.</b> Uses QuickBill's existing SQL Server database directly — bills appear instantly and stay consistent.</li>
+  <li><b>Reliable writes.</b> Every save is transactional; bad input is rejected with clear error messages; infrastructure issues degrade gracefully.</li>
+  <li><b>Easy to update.</b> Restart of the backend is sub-second; nginx reload is hitless. Updates can be deployed during the working day.</li>
+  <li><b>Secure by default.</b> Unprivileged service user, restricted file permissions, internal-only API port, HTTPS via Let's Encrypt, least-privilege database account.</li>
+  <li><b>Industry-standard stack.</b> Go, React, nginx, SQL Server — easy to staff, easy to support, easy to audit.</li>
+</ol>
+
+<p class="footer-note">End of document — Alteration App Technical Overview v1.0</p>
+
+</body>
+</html>

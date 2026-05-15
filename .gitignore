@@ -1,0 +1,16 @@
+# Real secrets — only .env.example is committed
+.env
+.env.local
+
+# Built binaries
+alteration.exe
+
+# Editor/OS clutter
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Node — managed by web/.gitignore for its own scope, but be defensive
+node_modules/
+dist/
