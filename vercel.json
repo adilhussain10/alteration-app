@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build --prefix web",
+  "outputDirectory": "web/dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://alteration-app.onrender.com/api/:path*"
+    }
+  ]
+}
