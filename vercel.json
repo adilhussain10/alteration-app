@@ -6,5 +6,16 @@
       "source": "/api/:path*",
       "destination": "https://sarcastic-caravan-ounce.ngrok-free.dev/api/:path*"
     }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "ngrok-skip-browser-warning",
+          "value": "true"
+        }
+      ]
+    }
   ]
 }
