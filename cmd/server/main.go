@@ -16,7 +16,7 @@ func main() {
 	conn, err := db.Open()
 	if err != nil {
 		log.Printf("db: %v — starting without database; endpoints will return 503", err)
-		log.Printf("edit .env to set DATABASE_URL (sqlserver:// DSN) and restart")
+		log.Printf("edit .env to set DATABASE_URL (postgres:// DSN) and restart")
 	} else {
 		defer conn.Close()
 		log.Printf("db: connected (Postgres)")
@@ -79,6 +79,6 @@ func dbUnavailable(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error":  "database not configured",
 		"status": http.StatusServiceUnavailable,
-		"detail": "edit .env to set DATABASE_URL (sqlserver:// DSN) and restart the server",
+		"detail": "edit .env to set DATABASE_URL (postgres:// DSN) and restart the server",
 	})
 }
