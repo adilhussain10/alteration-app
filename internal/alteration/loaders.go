@@ -145,7 +145,7 @@ WHERE h.QBGUID = $1
 const itemsListSQL = `
 SELECT i.QBGUID, i.SerialNo, m.StockNo, m.ItemDescription, i.DocQty
 FROM dbo.QbVoucherItems i
-INNER JOIN dbo.QbItemMaster m
+LEFT JOIN dbo.QbItemMaster m
        ON m.QBGUID = i.ItemGUID
       AND m.ActiveFlag = 1
 WHERE i.VchHdrGUID = $1
