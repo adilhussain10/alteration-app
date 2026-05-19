@@ -19,7 +19,7 @@ type allocatedNumber struct {
 // UPDATE row serialises concurrent allocators.
 func allocateVoucherNumber(ctx context.Context, tx *sql.Tx) (allocatedNumber, error) {
 	const prefixSQL = `
-SELECT ISNULL(PrefixManual, ''), ISNULL(DelimiterChar, '')
+SELECT COALESCE(PrefixManual, ''), COALESCE(DelimiterChar, '')
 FROM dbo.QbVoucherType
 WHERE QBGUID = '6010-Alteration' AND ActiveFlag = 1`
 
@@ -32,13 +32,13 @@ WHERE QBGUID = '6010-Alteration' AND ActiveFlag = 1`
 		return allocatedNumber{}, fmt.Errorf("read QbVoucherType: %w", err)
 	}
 
-	// SQL Server's OUTPUT INSERTED.<col> returns the new value in one
-	// round-trip while the X lock is still held on the row.
+	// Postgres' RETURNING returns the new value in one round-trip while
+	// the row lock from the UPDATE is still held.
 	const incrementSQL = `
 UPDATE dbo.QbVoucherNumber
 SET VoucherNumber = VoucherNumber + 1
-OUTPUT INSERTED.VoucherNumber
-WHERE VchTypeGuid = '6010-Alteration' AND ActiveFlag = 1`
+WHERE VchTypeGuid = '6010-Alteration' AND ActiveFlag = 1
+RETURNING VoucherNumber`
 
 	var newNumber int
 	err = tx.QueryRowContext(ctx, incrementSQL).Scan(&newNumber)

@@ -155,11 +155,11 @@ func updateDocStatus(
 
 	const updateHdrSQL = `
 UPDATE dbo.QbVoucherAlteration
-SET Status     = @p2,
-    ActiveFlag = @p3,
+SET Status     = $2,
+    ActiveFlag = $3,
     AlterId    = AlterId + 1,
-    QbUserId   = @p4
-WHERE QBGUID = @p1`
+    QbUserId   = $4
+WHERE QBGUID = $1`
 	if _, err := tx.ExecContext(ctx, updateHdrSQL,
 		qbguid, int16(newStatus), activeFlag, userID); err != nil {
 		return StatusUpdateResponse{}, fmt.Errorf("update header: %w", err)
@@ -167,11 +167,11 @@ WHERE QBGUID = @p1`
 
 	const updateItemsSQL = `
 UPDATE dbo.QbVoucherAlterationItems
-SET Status     = @p2,
-    ActiveFlag = @p3,
+SET Status     = $2,
+    ActiveFlag = $3,
     AlterId    = AlterId + 1,
-    QbUserId   = @p4
-WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
+    QbUserId   = $4
+WHERE AlterationGUID = $1 AND ActiveFlag = 1`
 	if _, err := tx.ExecContext(ctx, updateItemsSQL,
 		qbguid, int16(newStatus), activeFlag, userID); err != nil {
 		return StatusUpdateResponse{}, fmt.Errorf("update items: %w", err)
@@ -227,11 +227,11 @@ func updateItemStatus(
 
 	const updateItemSQL = `
 UPDATE dbo.QbVoucherAlterationItems
-SET Status     = @p3,
-    ActiveFlag = @p4,
+SET Status     = $3,
+    ActiveFlag = $4,
     AlterId    = AlterId + 1,
-    QbUserId   = @p5
-WHERE AlterationGUID = @p1 AND VoucherItemGUID = @p2 AND ActiveFlag = 1`
+    QbUserId   = $5
+WHERE AlterationGUID = $1 AND VoucherItemGUID = $2 AND ActiveFlag = 1`
 	if _, err := tx.ExecContext(ctx, updateItemSQL,
 		qbguid, itemQbguid, int16(newStatus), itemActiveFlag, userID); err != nil {
 		return StatusUpdateResponse{}, fmt.Errorf("update item: %w", err)
@@ -250,10 +250,10 @@ WHERE AlterationGUID = @p1 AND VoucherItemGUID = @p2 AND ActiveFlag = 1`
 	if minItemStatus != nil && *minItemStatus != currentDocStatus {
 		const autoUpdateHdrSQL = `
 UPDATE dbo.QbVoucherAlteration
-SET Status   = @p2,
+SET Status   = $2,
     AlterId  = AlterId + 1,
-    QbUserId = @p3
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+    QbUserId = $3
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 		if _, err := tx.ExecContext(ctx, autoUpdateHdrSQL,
 			qbguid, int16(*minItemStatus), userID); err != nil {
 			return StatusUpdateResponse{}, fmt.Errorf("auto-update header: %w", err)
@@ -276,7 +276,7 @@ WHERE QBGUID = @p1 AND ActiveFlag = 1`
 func readCurrentDocStatus(ctx context.Context, tx *sql.Tx, qbguid string) (Status, error) {
 	const sqlText = `
 SELECT Status FROM dbo.QbVoucherAlteration
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 	var s int16
 	if err := tx.QueryRowContext(ctx, sqlText, qbguid).Scan(&s); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -290,7 +290,7 @@ WHERE QBGUID = @p1 AND ActiveFlag = 1`
 func readCurrentItemStatus(ctx context.Context, tx *sql.Tx, alterationGUID, voucherItemGUID string) (Status, error) {
 	const sqlText = `
 SELECT Status FROM dbo.QbVoucherAlterationItems
-WHERE AlterationGUID = @p1 AND VoucherItemGUID = @p2 AND ActiveFlag = 1`
+WHERE AlterationGUID = $1 AND VoucherItemGUID = $2 AND ActiveFlag = 1`
 	var s int16
 	if err := tx.QueryRowContext(ctx, sqlText, alterationGUID, voucherItemGUID).Scan(&s); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

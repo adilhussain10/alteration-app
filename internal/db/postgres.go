@@ -1,7 +1,4 @@
-// Package db opens the connection to QuickBill's SQL Server tenant DB.
-//
-// The file is still named postgres.go for git-history continuity; the
-// implementation is SQL Server. Use db.Open() from any binary.
+// Package db opens the connection to the alteration-app Postgres database.
 package db
 
 import (
@@ -10,18 +7,22 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/microsoft/go-mssqldb"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// Open reads DATABASE_URL (sqlserver:// DSN) and returns a verified
+// Open reads DATABASE_URL (postgres:// DSN) and returns a verified
 // connection pool. Caller owns Close().
+//
+// Example DSN:
+//
+//	postgres://user:pass@host:5432/dbname?sslmode=require
 func Open() (*sql.DB, error) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		return nil, fmt.Errorf("DATABASE_URL not set")
 	}
 
-	db, err := sql.Open("sqlserver", dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open: %w", err)
 	}

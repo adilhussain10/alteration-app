@@ -51,7 +51,7 @@ type existingAlterationHeader struct {
 func loadVoucherItemQtys(ctx context.Context, tx *sql.Tx, voucherHdrGUID string) (map[string]int, error) {
 	const headerSQL = `
 SELECT 1 FROM dbo.QbVoucherHeader
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 	var dummy int
 	if err := tx.QueryRowContext(ctx, headerSQL, voucherHdrGUID).Scan(&dummy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -61,9 +61,9 @@ WHERE QBGUID = @p1 AND ActiveFlag = 1`
 	}
 
 	const itemsSQL = `
-SELECT QBGUID, ISNULL(DocQty, 0)
+SELECT QBGUID, COALESCE(DocQty, 0)
 FROM dbo.QbVoucherItems
-WHERE VchHdrGUID = @p1 AND ActiveFlag = 1`
+WHERE VchHdrGUID = $1 AND ActiveFlag = 1`
 	rows, err := tx.QueryContext(ctx, itemsSQL, voucherHdrGUID)
 	if err != nil {
 		return nil, fmt.Errorf("load items: %w", err)
@@ -84,9 +84,9 @@ WHERE VchHdrGUID = @p1 AND ActiveFlag = 1`
 
 func loadVoucherPartyGUID(ctx context.Context, tx *sql.Tx, voucherHdrGUID string) (string, error) {
 	const sqlText = `
-SELECT ISNULL(PartyGUID, '')
+SELECT COALESCE(PartyGUID, '')
 FROM dbo.QbVoucherHeader
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 	var partyGUID string
 	if err := tx.QueryRowContext(ctx, sqlText, voucherHdrGUID).Scan(&partyGUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -99,11 +99,11 @@ WHERE QBGUID = @p1 AND ActiveFlag = 1`
 
 const existingHeaderSelectSQL = `
 SELECT QBGUID, VoucherNo, VoucherDate,
-       ISNULL(InternalRefNo, ''),
+       COALESCE(InternalRefNo, ''),
        Status,
-       ISNULL(CreatedBy, ''), ISNULL(CreatedAt, GETDATE())
+       COALESCE(CreatedBy, ''), COALESCE(CreatedAt, NOW())
 FROM dbo.QbVoucherAlteration
-WHERE VoucherHdrGUID = @p1 AND ActiveFlag = 1`
+WHERE VoucherHdrGUID = $1 AND ActiveFlag = 1`
 
 func loadExistingAlterationHeader(ctx context.Context, tx *sql.Tx, voucherHdrGUID string) (*existingAlterationHeader, error) {
 	row := tx.QueryRowContext(ctx, existingHeaderSelectSQL, voucherHdrGUID)
@@ -113,7 +113,7 @@ func loadExistingAlterationHeader(ctx context.Context, tx *sql.Tx, voucherHdrGUI
 func minActiveItemStatus(ctx context.Context, tx *sql.Tx, qbguid string) (*Status, error) {
 	const sqlText = `
 SELECT MIN(Status) FROM dbo.QbVoucherAlterationItems
-WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
+WHERE AlterationGUID = $1 AND ActiveFlag = 1`
 	var s sql.NullInt16
 	if err := tx.QueryRowContext(ctx, sqlText, qbguid).Scan(&s); err != nil {
 		return nil, fmt.Errorf("min item status: %w", err)
@@ -129,8 +129,8 @@ WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
 
 const headerSQL = `
 SELECT h.QBGUID, h.VoucherNo, h.VoucherDate, h.PartyGUID,
-       ISNULL(l.LedgerName, '') AS PartyName,
-       ISNULL(ma.MobileNo, '')  AS PartyMobile
+       COALESCE(l.LedgerName, '') AS PartyName,
+       COALESCE(ma.MobileNo, '')  AS PartyMobile
 FROM dbo.QbVoucherHeader h
 LEFT JOIN dbo.QbLedger l
        ON l.QBGUID = h.PartyGUID
@@ -139,7 +139,7 @@ LEFT JOIN dbo.QbMaillingAddress ma
        ON ma.LinkGUID = l.QBGUID
       AND ma.ActiveFlag = 1
       AND ma.AddressType = 'BillingAddress'
-WHERE h.QBGUID = @p1
+WHERE h.QBGUID = $1
   AND h.ActiveFlag = 1`
 
 const itemsListSQL = `
@@ -148,7 +148,7 @@ FROM dbo.QbVoucherItems i
 INNER JOIN dbo.QbItemMaster m
        ON m.QBGUID = i.ItemGUID
       AND m.ActiveFlag = 1
-WHERE i.VchHdrGUID = @p1
+WHERE i.VchHdrGUID = $1
   AND i.ActiveFlag = 1
 ORDER BY i.SerialNo ASC`
 
@@ -220,9 +220,9 @@ func loadExistingAlterationHeaderDB(ctx context.Context, db *sql.DB, voucherHdrG
 func loadExistingAlterationItems(ctx context.Context, db *sql.DB, alterationGUID string) ([]ExistingAlterationItem, error) {
 	const sqlText = `
 SELECT VoucherItemGUID, AlterationQty,
-       ISNULL(Remarks, ''), DeliveryDate, Status
+       COALESCE(Remarks, ''), DeliveryDate, Status
 FROM dbo.QbVoucherAlterationItems
-WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
+WHERE AlterationGUID = $1 AND ActiveFlag = 1`
 	rows, err := db.QueryContext(ctx, sqlText, alterationGUID)
 	if err != nil {
 		return nil, err

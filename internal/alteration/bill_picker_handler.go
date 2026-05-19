@@ -105,11 +105,11 @@ SELECT
     vh.QBGUID,
     vh.VoucherNo,
     CASE WHEN a.QBGUID IS NULL THEN 0 ELSE 1 END AS HasAlteration,
-    ISNULL(a.QBGUID, '')                          AS AlterationQbguid
+    COALESCE(a.QBGUID, '')                          AS AlterationQbguid
 FROM dbo.QbVoucherHeader vh
 LEFT JOIN dbo.QbVoucherAlteration a
     ON a.VoucherHdrGUID = vh.QBGUID AND a.ActiveFlag = 1
-WHERE vh.VoucherNo    = @p1
+WHERE vh.VoucherNo    = $1
   AND vh.VoucherType  IN (1080, 1090)
   AND vh.ActiveFlag   = 1`
 
@@ -141,37 +141,37 @@ SELECT
         WHEN 1080 THEN 'Sales Order'
         ELSE 'Other'
     END AS VoucherTypeName,
-    ISNULL(l.LedgerName, '') AS CustomerName,
-    ISNULL(ma.MobileNo,  '') AS CustomerMobile,
+    COALESCE(l.LedgerName, '') AS CustomerName,
+    COALESCE(ma.MobileNo,  '') AS CustomerMobile,
     (SELECT COUNT(*)
      FROM dbo.QbVoucherItems vi
      WHERE vi.VchHdrGUID = vh.QBGUID
        AND vi.ActiveFlag = 1) AS ItemCount,
     CASE WHEN a.QBGUID IS NULL THEN 0 ELSE 1 END AS HasAlteration,
-    ISNULL(a.QBGUID,      '') AS AlterationQbguid,
-    ISNULL(a.VoucherNo,   '') AS AlterationNo,
+    COALESCE(a.QBGUID,      '') AS AlterationQbguid,
+    COALESCE(a.VoucherNo,   '') AS AlterationNo,
     a.Status                  AS AlterationStatus,
-    ISNULL((SELECT COUNT(*)
+    COALESCE((SELECT COUNT(*)
             FROM dbo.QbVoucherAlterationItems ai
             WHERE ai.AlterationGUID = a.QBGUID
               AND ai.ActiveFlag = 1
               AND ai.Status = 0), 0) AS ReceivedItemCount,
-    ISNULL((SELECT COUNT(*)
+    COALESCE((SELECT COUNT(*)
             FROM dbo.QbVoucherAlterationItems ai
             WHERE ai.AlterationGUID = a.QBGUID
               AND ai.ActiveFlag = 1
               AND ai.Status = 1), 0) AS InProgressItemCount,
-    ISNULL((SELECT COUNT(*)
+    COALESCE((SELECT COUNT(*)
             FROM dbo.QbVoucherAlterationItems ai
             WHERE ai.AlterationGUID = a.QBGUID
               AND ai.ActiveFlag = 1
               AND ai.Status = 2), 0) AS ReadyItemCount,
-    ISNULL((SELECT COUNT(*)
+    COALESCE((SELECT COUNT(*)
             FROM dbo.QbVoucherAlterationItems ai
             WHERE ai.AlterationGUID = a.QBGUID
               AND ai.ActiveFlag = 1
               AND ai.Status = 3), 0) AS DeliveredItemCount,
-    ISNULL((SELECT COUNT(*)
+    COALESCE((SELECT COUNT(*)
             FROM dbo.QbVoucherAlterationItems ai
             WHERE ai.AlterationGUID = a.QBGUID
               AND ai.ActiveFlag = 1), 0) AS AlterationItemCount
@@ -186,8 +186,8 @@ LEFT JOIN dbo.QbVoucherAlteration a
     ON a.VoucherHdrGUID = vh.QBGUID AND a.ActiveFlag = 1
 WHERE vh.VoucherType IN (1080, 1090)
   AND vh.ActiveFlag   = 1
-  AND vh.VoucherDate >= @p1
-  AND vh.VoucherDate <= @p2
+  AND vh.VoucherDate >= $1
+  AND vh.VoucherDate <= $2
 ORDER BY vh.VoucherDate DESC, vh.VoucherNo DESC`
 
 	rows, err := db.QueryContext(ctx, sqlText, fromDate, toDate)

@@ -103,7 +103,7 @@ func runAlterationReport(
 	sqlText := fmt.Sprintf(`
 SELECT
     a.QBGUID                  AS AlterationQbguid,
-    ISNULL(a.VoucherNo,   '') AS AlterationNo,
+    COALESCE(a.VoucherNo,   '') AS AlterationNo,
     vh.QBGUID                 AS VoucherQbguid,
     vh.VoucherNo,
     vh.VoucherDate,
@@ -113,7 +113,7 @@ SELECT
         WHEN 1080 THEN 'Sales Order'
         ELSE 'Other'
     END                       AS VoucherTypeName,
-    ISNULL(l.LedgerName,  '') AS CustomerName,
+    COALESCE(l.LedgerName,  '') AS CustomerName,
     a.Status                  AS Status,
     (SELECT MIN(ai.DeliveryDate)
        FROM dbo.QbVoucherAlterationItems ai
@@ -135,11 +135,11 @@ LEFT  JOIN dbo.QbLedger        l  ON l.QBGUID  = vh.PartyGUID
 WHERE a.ActiveFlag    = 1
   AND vh.ActiveFlag   = 1
   %s
-  AND vh.VoucherDate >= @p1
-  AND vh.VoucherDate <= @p2
+  AND vh.VoucherDate >= $1
+  AND vh.VoucherDate <= $2
 ORDER BY
-    CASE WHEN @p3 = 'pending' THEN
-        ISNULL((SELECT MIN(ai.DeliveryDate)
+    CASE WHEN $3 = 'pending' THEN
+        COALESCE((SELECT MIN(ai.DeliveryDate)
                   FROM dbo.QbVoucherAlterationItems ai
                  WHERE ai.AlterationGUID = a.QBGUID
                    AND ai.ActiveFlag = 1),

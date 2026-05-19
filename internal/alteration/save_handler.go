@@ -153,7 +153,7 @@ func saveAlteration(
 		const readStatusSQL = `
 SELECT VoucherItemGUID, Status
 FROM dbo.QbVoucherAlterationItems
-WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
+WHERE AlterationGUID = $1 AND ActiveFlag = 1`
 		statusRows, err := tx.QueryContext(ctx, readStatusSQL, alterationQbguid)
 		if err != nil {
 			return SaveAlterationResponse{}, fmt.Errorf("read existing item statuses: %w", err)
@@ -175,10 +175,10 @@ WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
 
 		const updateSQL = `
 UPDATE dbo.QbVoucherAlteration
-SET InternalRefNo = @p2,
+SET InternalRefNo = $2,
     AlterId       = AlterId + 1,
-    QbUserId      = @p3
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+    QbUserId      = $3
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 		if _, err := tx.ExecContext(ctx, updateSQL,
 			alterationQbguid, nullableString(req.InternalRefNo), userID); err != nil {
 			return SaveAlterationResponse{}, fmt.Errorf("update header: %w", err)
@@ -188,8 +188,8 @@ WHERE QBGUID = @p1 AND ActiveFlag = 1`
 UPDATE dbo.QbVoucherAlterationItems
 SET ActiveFlag = 0,
     AlterId    = AlterId + 1,
-    QbUserId   = @p2
-WHERE AlterationGUID = @p1 AND ActiveFlag = 1`
+    QbUserId   = $2
+WHERE AlterationGUID = $1 AND ActiveFlag = 1`
 		if _, err := tx.ExecContext(ctx, softDeleteSQL, alterationQbguid, userID); err != nil {
 			return SaveAlterationResponse{}, fmt.Errorf("soft-delete old details: %w", err)
 		}
@@ -215,9 +215,9 @@ INSERT INTO dbo.QbVoucherAlteration (
     VoucherHdrGUID, PartyGUID, InternalRefNo, Status,
     CreatedBy, CreatedAt, QbUserId
 ) VALUES (
-    @p1, 6010, @p2, @p3,
-    @p4, @p5, @p6, @p7,
-    @p8, @p9, @p10
+    $1, 6010, $2, $3,
+    $4, $5, $6, $7,
+    $8, $9, $10
 )`
 		now := time.Now().UTC()
 		if _, err := tx.ExecContext(ctx, insertHeaderSQL,
@@ -235,7 +235,7 @@ INSERT INTO dbo.QbVoucherAlterationItems (
     QBGUID, AlterationGUID, VoucherItemGUID, AlterationQty,
     Remarks, DeliveryDate, Status, QbUserId
 ) VALUES (
-    @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8
+    $1, $2, $3, $4, $5, $6, $7, $8
 )`
 	for _, it := range req.Items {
 		detailQbguid := uuid.NewString()
@@ -277,10 +277,10 @@ INSERT INTO dbo.QbVoucherAlterationItems (
 	} else if minStatus != nil && *minStatus != status {
 		const syncDocSQL = `
 UPDATE dbo.QbVoucherAlteration
-SET Status   = @p2,
+SET Status   = $2,
     AlterId  = AlterId + 1,
-    QbUserId = @p3
-WHERE QBGUID = @p1 AND ActiveFlag = 1`
+    QbUserId = $3
+WHERE QBGUID = $1 AND ActiveFlag = 1`
 		if _, err := tx.ExecContext(ctx, syncDocSQL,
 			alterationQbguid, int16(*minStatus), userID); err != nil {
 			return SaveAlterationResponse{}, fmt.Errorf("sync header status: %w", err)

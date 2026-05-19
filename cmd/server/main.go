@@ -19,7 +19,7 @@ func main() {
 		log.Printf("edit .env to set DATABASE_URL (sqlserver:// DSN) and restart")
 	} else {
 		defer conn.Close()
-		log.Printf("db: connected (SQL Server)")
+		log.Printf("db: connected (Postgres)")
 	}
 
 	mux := http.NewServeMux()
