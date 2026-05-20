@@ -255,6 +255,14 @@ function AlterationPageWithVoucher({ qbguid, returnMode }: AlterationPageWithVou
 
   const saveDisabledRef = useRef<boolean>(true);
   const isTerminalRef = useRef<boolean>(false);
+  // The keydown listener is registered once on mount. To avoid it capturing
+  // stale closures (e.g. handleSave with data still undefined from first
+  // render), we hold the latest handlers in refs and update them every
+  // render — same trick saveDisabledRef already uses.
+  const handleSaveRef = useRef(handleSave);
+  const handleBackRef = useRef(handleBack);
+  const handleExitRef = useRef(handleExit);
+  const confirmDialogRef = useRef(confirmDialog);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -280,27 +288,26 @@ function AlterationPageWithVoucher({ qbguid, returnMode }: AlterationPageWithVou
           title: `${shortcut} — Saving alteration…`,
           duration: 1200,
         });
-        void handleSave();
+        void handleSaveRef.current();
         return;
       }
       if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();
-        handleBack();
+        handleBackRef.current();
         return;
       }
       if (e.key === 'Escape') {
-        if (confirmDialog) {
+        if (confirmDialogRef.current) {
           setConfirmDialog(null);
           return;
         }
         e.preventDefault();
-        handleExit();
+        handleExitRef.current();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmDialog]);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -363,6 +370,10 @@ function AlterationPageWithVoucher({ qbguid, returnMode }: AlterationPageWithVou
 
   saveDisabledRef.current = saveDisabled;
   isTerminalRef.current = isTerminal;
+  handleSaveRef.current = handleSave;
+  handleBackRef.current = handleBack;
+  handleExitRef.current = handleExit;
+  confirmDialogRef.current = confirmDialog;
 
   const partyLabel = data.header.partyName === '' ? '(no party)' : data.header.partyName;
   const partyMobile = data.header.partyMobile ?? '';
